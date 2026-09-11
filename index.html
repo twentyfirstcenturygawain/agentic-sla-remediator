@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLA Incident Remediation Engine</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card-bg: #161922;
+      --border: #262b38;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #22c55e;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: var(--bg); color: var(--text-main); font-family: var(--font); padding: 2rem; display: flex; justify-content: center; }
+    
+    .container { max-width: 900px; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    header { grid-column: 1 / -1; margin-bottom: 0.5rem; }
+    header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+    header p { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+    
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 0.35rem; }
+    input, select, textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text-main);
+      padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.875rem; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+    button {
+      width: 100%; background: var(--accent); color: #000; font-weight: 600; font-size: 0.875rem;
+      padding: 0.65rem; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;
+    }
+    button:hover { background: var(--accent-hover); color: #fff; }
+
+    .log-container { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; color: var(--text-muted); overflow-y: auto; max-height: 320px; }
+    .log-entry { margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px dashed var(--border); }
+    .log-step { color: var(--accent); font-weight: 600; }
+    .status-pill { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(34, 197, 94, 0.15); color: var(--success); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Agentic SLA Incident Remediator</h1>
+      <p>Autonomous Agent for Salesforce Incident Decisioning & Workflow Orchestration</p>
+    </header>
+
+    <div class="card">
+      <form id="incidentForm">
+        <div class="form-group">
+          <label>Salesforce Case ID</label>
+          <input type="text" id="case_id" value="0035g00000XyZ12345" required>
+        </div>
+        <div class="form-group">
+          <label>Customer Tier</label>
+          <select id="customer_tier">
+            <option value="Enterprise">Enterprise</option>
+            <option value="Premium">Premium</option>
+            <option value="Standard">Standard</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Minutes Unanswered</label>
+          <input type="number" id="minutes_unanswered" value="45" required>
+        </div>
+        <div class="form-group">
+          <label>Issue Summary</label>
+          <textarea id="issue_description" rows="3">Main production cluster experiencing high latency. Customer reported complete outage on checkout pipeline.</textarea>
+        </div>
+        <button type="submit">Process Incident</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+        <label style="margin:0;">Execution Stream</label>
+        <span id="statusPill" class="status-pill" style="display:none;">READY</span>
+      </div>
+      <div class="log-container" id="logOutput">
+        <p>Awaiting incident dispatch...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('incidentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const output = document.getElementById('logOutput');
+      const pill = document.getElementById('statusPill');
+      
+      pill.style.display = 'inline-block';
+      pill.textContent = 'PROCESSING...';
+      pill.style.color = '#38bdf8';
+      pill.style.background = 'rgba(56, 189, 248, 0.15)';
+
+      output.innerHTML = '<p>Evaluating incident policies via Claude 3.5 Sonnet...</p>';
+
+      const payload = {
+        case_id: document.getElementById('case_id').value,
+        customer_tier: document.getElementById('customer_tier').value,
+        minutes_unanswered: parseInt(document.getElementById('minutes_unanswered').value),
+        issue_description: document.getElementById('issue_description').value
+      };
+
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/process-incident', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        pill.textContent = 'COMPLETED';
+        pill.style.color = '#22c55e';
+        pill.style.background = 'rgba(34, 197, 94, 0.15)';
+
+        output.innerHTML = '';
+        if (data.logs && data.logs.length > 0) {
+          data.logs.forEach(log => {
+            output.innerHTML += `
+              <div class="log-entry">
+                <div class="log-step">${log.step}</div>
+                <div>${typeof log.details === 'object' ? JSON.stringify(log.details) : log.details}</div>
+              </div>
+            `;
+          });
+        } else {
+          output.innerHTML = '<p>Incident analyzed: No automated remediation required by current SLA rules.</p>';
+        }
+      } catch (err) {
+        pill.textContent = 'FAILED';
+        pill.style.color = '#ef4444';
+        pill.style.background = 'rgba(239, 68, 68, 0.15)';
+        output.innerHTML = `<p style="color:#ef4444;">Error connecting to API backend: ${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
